@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cálculo de Pick Up</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        .cilindro {
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 5px;
+            width: 300px;
+        }
+        input {
+            margin: 5px 0;
+            padding: 5px;
+            width: 90%;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .resultado {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+        .historico {
+            margin-top: 30px;
+            border-top: 2px solid #ccc;
+            padding-top: 20px;
+        }
+        .historico-item {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        .delete-btn {
+            background-color: #ff4444;
+            margin-left: 10px;
+        }
+        .delete-btn:hover {
+            background-color: #cc0000;
+        }
+        #nomeMaquina {
+            margin-bottom: 15px;
+            width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Cálculo de Pick Up</h1>
+    
+    <div>
+        <label>Nome da Máquina:</label>
+        <input type="text" id="nomeMaquina" placeholder="Digite o nome da máquina">
+    </div>
+
+    <div class="container">
+        <div class="cilindro">
+            <h3>Cilindro de Entrada</h3>
+            <label>Peso Úmido (g):</label>
+            <input type="number" id="entradaUmido" step="0.01" required>
+            
+            <label>Peso Seco (g):</label>
+            <input type="number" id="entradaSeco" step="0.01" required>
+        </div>
+
+        <div class="cilindro">
+            <h3>Cilindro de Saída</h3>
+            <label>Peso Úmido (g):</label>
+            <input type="number" id="saidaUmido" step="0.01" required>
+            
+            <label>Peso Seco (g):</label>
+            <input type="number" id="saidaSeco" step="0.01" required>
+        </div>
+    </div>
+
+    <button onclick="calcularPickUp()">Calcular</button>
+
+    <div class="resultado">
+        <p>% Cilindro de Entrada: <span id="percentualEntrada">-</span></p>
+        <p>% Cilindro de Saída: <span id="percentualSaida">-</span></p>
+        <p>Resultado Pick Up: <span id="resultadoPickUp">-</span></p>
+    </div>
+
+    <div class="historico">
+        <h2>Histórico de Cálculos</h2>
+        <div id="listaHistorico"></div>
+    </div>
+
+    <script>
+        let historico = JSON.parse(localStorage.getItem('pickupHistory')) || [];
+
+        function calcularPickUp() {
+            // Obter valores dos inputs
+            const nomeMaquina = document.getElementById('nomeMaquina').value;
+            const entradaUmido = parseFloat(document.getElementById('entradaUmido').value);
+            const entradaSeco = parseFloat(document.getElementById('entradaSeco').value);
+            const saidaUmido = parseFloat(document.getElementById('saidaUmido').value);
+            const saidaSeco = parseFloat(document.getElementById('saidaSeco').value);
+
+            // Calcular percentuais
+            const percentualEntrada = ((entradaUmido - entradaSeco) / entradaSeco) * 100;
+            const percentualSaida = ((saidaUmido - saidaSeco) / saidaSeco) * 100;
+            const pickUp = percentualSaida - percentualEntrada;
+
+            // Criar registro do cálculo
+            const registro = {
+                data: new Date().toLocaleString(),
+                maquina: nomeMaquina,
+                entrada: { umido: entradaUmido, seco: entradaSeco },
+                saida: { umido: saidaUmido, seco: saidaSeco },
+                resultados: {
+                    entrada: percentualEntrada,
+                    saida: percentualSaida,
+                    pickUp: pickUp
+                }
+            };
+
+            // Adicionar ao histórico e salvar
+            historico.unshift(registro);
+            localStorage.setItem('pickupHistory', JSON.stringify(historico));
+
+            // Atualizar exibição
+            exibirResultados(registro);
+            exibirHistorico();
+        }
+
+        function exibirResultados(registro) {
+            document.getElementById('percentualEntrada').textContent = registro.resultados.entrada.toFixed(2) + '%';
+            document.getElementById('percentualSaida').textContent = registro.resultados.saida.toFixed(2) + '%';
+            document.getElementById('resultadoPickUp').textContent = registro.resultados.pickUp.toFixed(2) + '%';
+        }
+
+        function exibirHistorico() {
+            const lista = document.getElementById('listaHistorico');
+            lista.innerHTML = historico.map((item, index) => `
+                <div class="historico-item">
+                    <strong>${item.maquina}</strong> - ${item.data}
+                    <button class="delete-btn" onclick="deletarRegistro(${index})">Excluir</button>
+                    <div style="margin-top: 5px;">
+                        Entrada: ${item.entrada.umido}g / ${item.entrada.seco}g |
+                        Saída: ${item.saida.umido}g / ${item.saida.seco}g |
+                        Resultado: ${item.resultados.pickUp.toFixed(2)}%
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function deletarRegistro(index) {
+            historico.splice(index, 1);
+            localStorage.setItem('pickupHistory', JSON.stringify(historico));
+            exibirHistorico();
+        }
+
+        // Carregar histórico ao iniciar
+        exibirHistorico();
+    </script>
+</body>
+</html>
